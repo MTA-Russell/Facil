@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#14181c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Facilities Requests">
+<title>MagTec Facilities Requests</title>
+<style>
+  :root{--bg:#14181c;--panel:#1c2127;--panel-line:#2b323b;--text:#eef1f4;--sub:#8d98a3;--amber:#f5a623;}
+  *{box-sizing:border-box;}
+  html,body{min-height:100%;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px;}
+  .card{width:100%;max-width:480px;background:var(--panel);border:1px solid var(--panel-line);border-radius:10px;overflow:hidden;}
+  .head{padding:18px 22px 14px;border-bottom:1px solid var(--panel-line);}
+  .tag{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);font-weight:700;}
+  h1{margin:4px 0 0;font-size:19px;font-weight:600;}
+  .bar{height:4px;background:var(--panel-line);}
+  .fill{height:100%;background:var(--amber);transition:width .25s;}
+  .ct{padding:10px 22px 0;font-size:12px;color:var(--sub);}
+  .body{padding:22px;min-height:200px;display:flex;flex-direction:column;justify-content:center;}
+  .lbl{display:block;font-size:16px;font-weight:600;margin-bottom:16px;}
+  input,select{min-width:0;width:100%;background:var(--bg);border:1px solid var(--panel-line);color:var(--text);font-size:17px;padding:14px;border-radius:7px;font-family:inherit;color-scheme:dark;outline:none;}
+  input:focus,select:focus{border-color:var(--amber);}
+  .foot{display:flex;gap:10px;padding:16px 22px 22px;border-top:1px solid var(--panel-line);}
+  .nav{border:1px solid transparent;border-radius:7px;padding:14px 12px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .back{background:transparent;color:var(--sub);border-color:var(--panel-line);}
+  .next{background:var(--amber);color:#20180a;flex:1;}
+  .review-button{flex:1;}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:3px;}
+  dl{margin:0;}
+  .row{padding:12px 0;border-bottom:1px solid var(--panel-line);}
+  .row:first-child{padding-top:0;}
+  .row:last-child{border-bottom:0;padding-bottom:0;}
+  dt{font-size:12px;color:var(--sub);margin-bottom:5px;}
+  dd{margin:0;font-size:16px;min-height:20px;white-space:pre-wrap;overflow-wrap:anywhere;}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="head"><div class="tag">MagTec Alaska</div><h1>Facilities Requests</h1></div>
+  <div class="bar"><div class="fill" id="fill" style="width:0%"></div></div>
+  <div class="ct" id="ct" aria-live="polite"></div>
+  <div class="body" id="body"></div>
+  <div class="foot" id="foot"></div>
+</main>
+<script>
+(function(){
+  'use strict';
+  var MAIL_TO = 'NSrentals@magtecalaska.com';
+  var STEPS = [
+    {key:'name',label:'Name',type:'text',autocomplete:'name'},
+    {key:'location',label:'Location',type:'text'},
+    {key:'service',label:'Type of Service Needed',type:'select',options:['Fuel','Water','Waste']},
+    {key:'asset',label:'Asset Number',type:'text'},
+    {key:'priority',label:'Priority Level',type:'select',options:['Low','Med','High']}
+  ];
+  var answers = {}, index = 0;
+  var bodyEl = document.getElementById('body');
+  var footEl = document.getElementById('foot');
+  var countEl = document.getElementById('ct');
+  var fillEl = document.getElementById('fill');
+
+  function button(label, action, className){
+    var el = document.createElement('button');
+    el.type = 'button';
+    el.textContent = label;
+    el.className = 'nav ' + className;
+    el.addEventListener('click', action);
+    footEl.appendChild(el);
+    return el;
+  }
+
+  function render(){
+    var step = STEPS[index];
+    bodyEl.replaceChildren();
+    footEl.replaceChildren();
+    fillEl.style.width = Math.round(index / STEPS.length * 100) + '%';
+    countEl.textContent = 'Step ' + (index + 1) + ' of ' + STEPS.length;
+    var label = document.createElement('label');
+    label.className = 'lbl';
+    label.htmlFor = 'inp';
+    label.textContent = step.label;
+    var input = document.createElement(step.type === 'select' ? 'select' : 'input');
+    if(step.type === 'select'){
+      [''].concat(step.options).forEach(function(value){
+        var option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        input.appendChild(option);
+      });
+    }else{
+      input.type = step.type;
+      input.autocomplete = step.autocomplete || 'off';
+    }
+    input.id = 'inp';
+    input.name = step.key;
+    input.value = answers[step.key] || '';
+    input.addEventListener('keydown', function(event){
+      if(event.key === 'Enter'){event.preventDefault();forward();}
+    });
+    bodyEl.append(label, input);
+    if(index > 0){button('Back', back, 'back');}
+    button(index === STEPS.length - 1 ? 'Review' : 'Next', forward, 'next');
+    input.focus();
+  }
+
+  function save(){answers[STEPS[index].key] = document.getElementById('inp').value;}
+  function forward(){
+    save();
+    if(index < STEPS.length - 1){index++;render();}
+    else{review();}
+  }
+  function back(){save();index--;render();}
+
+  function displayValue(step){return answers[step.key] || '';}
+
+  function review(){
+    fillEl.style.width = '100%';
+    countEl.textContent = 'Review';
+    bodyEl.replaceChildren();
+    footEl.replaceChildren();
+    var list = document.createElement('dl');
+    STEPS.forEach(function(step){
+      var row = document.createElement('div');
+      row.className = 'row';
+      var label = document.createElement('dt');
+      label.textContent = step.label;
+      var value = document.createElement('dd');
+      value.textContent = displayValue(step);
+      row.append(label, value);
+      list.appendChild(row);
+    });
+    bodyEl.appendChild(list);
+    button('Open Email', openEmail, 'next review-button');
+    button('Start Over', function(){answers = {};index = 0;render();}, 'back review-button');
+  }
+
+  function openEmail(){
+    var subject = 'Facilities Request' + (answers.name ? ' - ' + answers.name : '');
+    var message = STEPS.map(function(step){return step.label + ': ' + displayValue(step);}).join('\r\n');
+    message += '\r\n\r\nSA10 - (907) 659-0157\r\nColville Dispatch - (907) 943-1811';
+    window.location.href = 'mailto:' + MAIL_TO + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(message);
+  }
+  render();
+})();
+</script>
+</body>
+</html>
